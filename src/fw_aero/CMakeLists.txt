@@ -17,6 +17,7 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 # --- Library -----------------------------------------------------------------
 add_library(fw_aero
   src/atmosphere.cpp
+  src/aerodynamics.cpp
 )
 target_include_directories(fw_aero PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -36,6 +37,7 @@ if(BUILD_TESTING)
 
   add_executable(fw_aero_tests
     test/test_atmosphere.cpp
+    test/test_aerodynamics.cpp
   )
   target_link_libraries(fw_aero_tests PRIVATE fw_aero GTest::gtest_main)
   target_compile_options(fw_aero_tests PRIVATE -Wall -Wextra -Wpedantic)
