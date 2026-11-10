@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>fw_aero_gazebo</name>
+  <version>0.1.0</version>
+  <description>
+    Gazebo Harmonic system plugin that applies the fw_aero 6-DoF aerodynamic
+    model to a fixed-wing UAV and accepts PX4 SITL actuator commands.
+  </description>
+  <maintainer email="258267710+SirPicklee@users.noreply.github.com">SirPicklee</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>cmake</buildtool_depend>
+
+  <depend>fw_aero</depend>
+  <!-- Gazebo Harmonic (gz-sim8, gz-plugin2, gz-transport13, gz-msgs10) is
+       installed system-wide by the PX4 setup script, not via rosdep. -->
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>
