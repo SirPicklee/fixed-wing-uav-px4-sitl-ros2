@@ -13,11 +13,17 @@
 // SDF parameters (all optional):
 //   <link_name>           link to act on                    (default base_link)
 //   <reference_altitude>  altitude of the world origin [m]  (default 0)
+//   <initial_airspeed>    forward speed set once at start [m/s] (default 0,
+//                         disabled; for standalone tests without PX4)
+//   <log_file>            CSV log path (default empty, disabled)
+//   <log_rate>            CSV log rate [Hz] (default 20)
 
 #include <gz/msgs/actuators.pb.h>
 #include <gz/msgs/double.pb.h>
 
 #include <array>
+#include <chrono>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -31,6 +37,7 @@
 #include <gz/sim/Link.hh>
 #include <gz/sim/Model.hh>
 #include <gz/sim/System.hh>
+#include <gz/sim/components/LinearVelocityCmd.hh>
 #include <gz/transport/Node.hh>
 #include <sdf/Element.hh>
 
@@ -83,6 +90,21 @@ class FixedWingAeroSystem : public gz::sim::System,
 
     reference_altitude_m_ =
         sdf->Get<double>("reference_altitude", 0.0).first;
+    initial_airspeed_ = sdf->Get<double>("initial_airspeed", 0.0).first;
+
+    const std::string log_file =
+        sdf->Get<std::string>("log_file", "").first;
+    log_period_s_ = 1.0 / sdf->Get<double>("log_rate", 20.0).first;
+    if (!log_file.empty()) {
+      log_.open(log_file);
+      if (log_) {
+        log_ << "t,x,y,z,vx,vy,vz,airspeed,alpha,beta,p,q,r,"
+                "elevator,aileron,rudder,throttle,fx,fy,fz,l,m,n\n";
+      } else {
+        gzerr << "[FixedWingAeroSystem] Cannot open log file " << log_file
+              << "\n";
+      }
+    }
 
     // PX4 gz_bridge topics (see fw_aero/px4_actuators.hpp).
     const std::string model_name = model_.Name(ecm);
@@ -115,12 +137,28 @@ class FixedWingAeroSystem : public gz::sim::System,
 
     gzmsg << "[FixedWingAeroSystem] Active on model [" << model_name
           << "], link [" << link_name << "], aircraft [" << params_.name
-          << "], reference altitude " << reference_altitude_m_ << " m\n";
+          << "], reference altitude " << reference_altitude_m_
+          << " m, initial airspeed " << initial_airspeed_ << " m/s\n";
   }
 
   void PreUpdate(const gz::sim::UpdateInfo& info,
                  gz::sim::EntityComponentManager& ecm) override {
     if (info.paused || !link_.Valid(ecm)) {
+      return;
+    }
+
+    // Optional initial airspeed (standalone tests). Gazebo keeps a zeroed
+    // LinearVelocityCmd component after applying it and would then force
+    // zero velocity on every step, so the component is removed one step
+    // after it has been applied.
+    if (initial_airspeed_ > 0.0 && init_stage_ < 2) {
+      if (init_stage_ == 0) {
+        link_.SetLinearVelocity(ecm, {initial_airspeed_, 0.0, 0.0});
+      } else {
+        ecm.RemoveComponent<gz::sim::components::LinearVelocityCmd>(
+            link_.Entity());
+      }
+      ++init_stage_;
       return;
     }
 
@@ -157,6 +195,21 @@ class FixedWingAeroSystem : public gz::sim::System,
     link_.AddWorldWrench(
         ecm, ToGz(fw_aero::BodyFrdToWorldEnu(q_enu_flu, res.force_body)),
         ToGz(fw_aero::BodyFrdToWorldEnu(q_enu_flu, res.moment_body)));
+
+    const double t = std::chrono::duration<double>(info.simTime).count();
+    if (log_.is_open() && t >= next_log_time_s_) {
+      next_log_time_s_ = t + log_period_s_;
+      const auto& p = pose->Pos();
+      log_ << t << ',' << p.X() << ',' << p.Y() << ',' << p.Z() << ','
+           << vel->X() << ',' << vel->Y() << ',' << vel->Z() << ','
+           << res.airspeed << ',' << res.alpha << ',' << res.beta << ','
+           << omega_frd.x() << ',' << omega_frd.y() << ',' << omega_frd.z()
+           << ',' << controls.elevator << ',' << controls.aileron << ','
+           << controls.rudder << ',' << controls.throttle << ','
+           << res.force_body.x() << ',' << res.force_body.y() << ','
+           << res.force_body.z() << ',' << res.moment_body.x() << ','
+           << res.moment_body.y() << ',' << res.moment_body.z() << '\n';
+    }
   }
 
  private:
@@ -165,6 +218,12 @@ class FixedWingAeroSystem : public gz::sim::System,
   fw_aero::AircraftParams params_;
   fw_aero::Px4ActuatorMapping mapping_;
   double reference_altitude_m_ = 0.0;
+  double initial_airspeed_ = 0.0;
+  int init_stage_ = 0;  // 0: set velocity, 1: remove command, 2: done
+
+  std::ofstream log_;
+  double log_period_s_ = 0.05;
+  double next_log_time_s_ = 0.0;
 
   gz::transport::Node node_;
   std::mutex cmd_mutex_;

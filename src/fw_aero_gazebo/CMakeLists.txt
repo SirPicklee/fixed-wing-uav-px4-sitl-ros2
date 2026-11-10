@@ -34,3 +34,8 @@ target_compile_options(FixedWingAeroSystem PRIVATE -Wall -Wextra -Wpedantic)
 install(TARGETS FixedWingAeroSystem
   LIBRARY DESTINATION lib
 )
+
+
+install(DIRECTORY worlds
+  DESTINATION share/${PROJECT_NAME}
+)
