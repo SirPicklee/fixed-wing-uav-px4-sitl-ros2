@@ -38,8 +38,11 @@ if(BUILD_TESTING)
   add_executable(fw_aero_tests
     test/test_atmosphere.cpp
     test/test_aerodynamics.cpp
+    test/test_python_parity.cpp
   )
   target_link_libraries(fw_aero_tests PRIVATE fw_aero GTest::gtest_main)
+  target_compile_definitions(fw_aero_tests PRIVATE
+   FW_AERO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/data")
   target_compile_options(fw_aero_tests PRIVATE -Wall -Wextra -Wpedantic)
 
   include(GoogleTest)
