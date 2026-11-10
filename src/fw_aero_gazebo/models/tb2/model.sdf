@@ -1,0 +1,137 @@
+<?xml version="1.0"?>
+<!--
+  TB2-class fixed-wing UAV for PX4 SITL (Gazebo Harmonic).
+
+  Single rigid link "base_link" whose origin is the centre of gravity:
+  the fw_aero plugin applies aero + thrust at the link origin. Mass and
+  inertia match fw_aero::AircraftParams. Control surfaces and propeller are
+  not modelled as joints: the plugin reads PX4 actuator commands directly.
+
+  Sensor names and the link name are fixed by PX4's gz_bridge topics
+  (/world/<w>/model/<m>/link/base_link/sensor/<name>/...). Sensor blocks and
+  noise values follow PX4's rc_cessna model.
+
+  Landing gear: three spheres with low friction (rolling wheels approximated
+  by sliding contacts). Wheel bottoms are 1.15 m below the CG.
+-->
+<sdf version="1.9">
+  <model name="tb2">
+    <link name="base_link">
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>650.0</mass>
+        <inertia>
+          <ixx>1200.0</ixx>
+          <iyy>1500.0</iyy>
+          <izz>2400.0</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <!-- Visuals (approximate TB2-class proportions) -->
+      <visual name="fuselage">
+        <geometry><box><size>6.5 0.6 0.6</size></box></geometry>
+        <material><diffuse>0.75 0.75 0.78 1</diffuse></material>
+      </visual>
+      <visual name="wing">
+        <pose>0.3 0 0.2 0 0 0</pose>
+        <geometry><box><size>0.92 12.0 0.08</size></box></geometry>
+        <material><diffuse>0.75 0.75 0.78 1</diffuse></material>
+      </visual>
+      <visual name="tail_left">
+        <pose>-3.0 0.6 0.5 0.6 0 0</pose>
+        <geometry><box><size>0.6 0.08 1.2</size></box></geometry>
+        <material><diffuse>0.75 0.75 0.78 1</diffuse></material>
+      </visual>
+      <visual name="tail_right">
+        <pose>-3.0 -0.6 0.5 -0.6 0 0</pose>
+        <geometry><box><size>0.6 0.08 1.2</size></box></geometry>
+        <material><diffuse>0.75 0.75 0.78 1</diffuse></material>
+      </visual>
+
+      <!-- Landing gear: nose wheel and two main wheels -->
+      <collision name="nose_wheel">
+        <pose>2.0 0 -1.0 0 0 0</pose>
+        <geometry><sphere><radius>0.15</radius></sphere></geometry>
+        <surface><friction><ode><mu>0.02</mu><mu2>0.02</mu2></ode></friction></surface>
+      </collision>
+      <collision name="main_wheel_left">
+        <pose>-0.3 1.5 -1.0 0 0 0</pose>
+        <geometry><sphere><radius>0.15</radius></sphere></geometry>
+        <surface><friction><ode><mu>0.02</mu><mu2>0.02</mu2></ode></friction></surface>
+      </collision>
+      <collision name="main_wheel_right">
+        <pose>-0.3 -1.5 -1.0 0 0 0</pose>
+        <geometry><sphere><radius>0.15</radius></sphere></geometry>
+        <surface><friction><ode><mu>0.02</mu><mu2>0.02</mu2></ode></friction></surface>
+      </collision>
+      <visual name="nose_wheel_visual">
+        <pose>2.0 0 -1.0 0 0 0</pose>
+        <geometry><sphere><radius>0.15</radius></sphere></geometry>
+        <material><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+      <visual name="main_wheel_left_visual">
+        <pose>-0.3 1.5 -1.0 0 0 0</pose>
+        <geometry><sphere><radius>0.15</radius></sphere></geometry>
+        <material><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+      <visual name="main_wheel_right_visual">
+        <pose>-0.3 -1.5 -1.0 0 0 0</pose>
+        <geometry><sphere><radius>0.15</radius></sphere></geometry>
+        <material><diffuse>0.1 0.1 0.1 1</diffuse></material>
+      </visual>
+
+      <!-- Sensors expected by PX4 gz_bridge (values from PX4 rc_cessna) -->
+      <sensor name="imu_sensor" type="imu">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>250</update_rate>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.0003394</stddev><dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev><dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.0003394</stddev><dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev><dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.0003394</stddev><dynamic_bias_stddev>3.8785e-05</dynamic_bias_stddev><dynamic_bias_correlation_time>1000</dynamic_bias_correlation_time></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0</mean><stddev>0.004</stddev><dynamic_bias_stddev>0.006</dynamic_bias_stddev><dynamic_bias_correlation_time>300</dynamic_bias_correlation_time></noise></x>
+            <y><noise type="gaussian"><mean>0</mean><stddev>0.004</stddev><dynamic_bias_stddev>0.006</dynamic_bias_stddev><dynamic_bias_correlation_time>300</dynamic_bias_correlation_time></noise></y>
+            <z><noise type="gaussian"><mean>0</mean><stddev>0.004</stddev><dynamic_bias_stddev>0.006</dynamic_bias_stddev><dynamic_bias_correlation_time>300</dynamic_bias_correlation_time></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+      <sensor name="navsat_sensor" type="navsat">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+      </sensor>
+      <sensor name="air_pressure_sensor" type="air_pressure">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>50</update_rate>
+        <air_pressure>
+          <pressure><noise type="gaussian"><mean>0</mean><stddev>0.01</stddev></noise></pressure>
+        </air_pressure>
+      </sensor>
+      <sensor name="magnetometer_sensor" type="magnetometer">
+        <gz_frame_id>base_link</gz_frame_id>
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+        <magnetometer>
+          <x><noise type="gaussian"><stddev>0.0001</stddev></noise></x>
+          <y><noise type="gaussian"><stddev>0.0001</stddev></noise></y>
+          <z><noise type="gaussian"><stddev>0.0001</stddev></noise></z>
+        </magnetometer>
+      </sensor>
+    </link>
+
+    <plugin filename="FixedWingAeroSystem"
+            name="fw_aero_gazebo::FixedWingAeroSystem">
+      <link_name>base_link</link_name>
+      <reference_altitude>0</reference_altitude>
+      <log_file>/tmp/tb2_flight.csv</log_file>
+      <log_rate>20</log_rate>
+    </plugin>
+  </model>
+</sdf>

@@ -36,6 +36,6 @@ install(TARGETS FixedWingAeroSystem
 )
 
 
-install(DIRECTORY worlds
+install(DIRECTORY worlds models
   DESTINATION share/${PROJECT_NAME}
 )
