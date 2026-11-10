@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ROS 2 / colcon derleme ciktilari
+build/
+install/
+log/
+
+# C++ / CMake
+cmake-build-*/
+compile_commands.json
+
+# PX4 ucus kayitlari (buyuk dosyalar; sonuclar ayri klasorde tutulacak)
+*.ulg
+
+# Editor / isletim sistemi
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
