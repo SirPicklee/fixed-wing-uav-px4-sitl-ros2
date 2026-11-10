@@ -28,11 +28,41 @@ target_compile_options(fw_aero PRIVATE -Wall -Wextra -Wpedantic)
 # Position-independent code: the library is later linked into a Gazebo
 # plugin, which is a shared object.
 set_target_properties(fw_aero PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(fw_aero::fw_aero ALIAS fw_aero)
+
+# --- Install / export (lets other packages call find_package(fw_aero)) ------
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS fw_aero EXPORT fw_aeroTargets
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(EXPORT fw_aeroTargets
+  NAMESPACE fw_aero::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fw_aero
+)
+configure_package_config_file(cmake/fw_aeroConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/fw_aeroConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fw_aero
+)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/fw_aeroConfigVersion.cmake
+  COMPATIBILITY SameMajorVersion
+)
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/fw_aeroConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/fw_aeroConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fw_aero
+)
 
 # --- Tests -------------------------------------------------------------------
-option(BUILD_TESTING "Build unit tests" ON)
+# include(CTest) defines BUILD_TESTING (default ON) and the dashboard config
+# that `colcon test` expects.
+include(CTest)
 if(BUILD_TESTING)
-  enable_testing()
   find_package(GTest REQUIRED)
 
   add_executable(fw_aero_tests
@@ -44,7 +74,7 @@ if(BUILD_TESTING)
   )
   target_link_libraries(fw_aero_tests PRIVATE fw_aero GTest::gtest_main)
   target_compile_definitions(fw_aero_tests PRIVATE
-   FW_AERO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/data")
+    FW_AERO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/data")
   target_compile_options(fw_aero_tests PRIVATE -Wall -Wextra -Wpedantic)
 
   include(GoogleTest)

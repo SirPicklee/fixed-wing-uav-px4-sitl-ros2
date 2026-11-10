@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>fw_aero</name>
+  <version>0.1.0</version>
+  <description>
+    Pure C++ 6-DoF aerodynamic model of a TB2-class fixed-wing UAV
+    (port of uav-6dof-autopilot), with frame conversions and PX4 actuator
+    mapping. No ROS or Gazebo dependency.
+  </description>
+  <maintainer email="258267710+SirPicklee@users.noreply.github.com">SirPicklee</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>cmake</buildtool_depend>
+
+  <depend>eigen</depend>
+
+  <test_depend>gtest</test_depend>
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>
