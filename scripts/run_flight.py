@@ -76,7 +76,10 @@ def kill_leftovers():
     """Make sure no simulator from an earlier run is still alive."""
     subprocess.run(["pkill", "-f", "gz sim"], check=False)
     subprocess.run(["pkill", "-f", "lib/fw_lqi/lqi_offboard"], check=False)
-    for name in ("MicroXRCEAgent", "px4"):
+    # A mission script left over from an interrupted run would reconnect to the
+    # new PX4 and send its own arm and mission-start commands mid-flight.
+    subprocess.run(["pkill", "-f", "scripts/fly_mission.py"], check=False)
+    for name in ("MicroXRCEAgent", "px4", "mavsdk_server"):
         subprocess.run(["pkill", "-x", name], check=False)
     time.sleep(2.0)
 

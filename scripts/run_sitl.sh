@@ -102,6 +102,10 @@ PX4_BIN="$PX4_DIR/build/px4_sitl_default/bin"
 (
   for _ in $(seq 120); do
     sleep 0.5
+    if "$PX4_BIN/px4-param" compare SENS_EN_ARSPDSIM 0 >/dev/null 2>&1 &&
+       ! "$PX4_BIN/px4-sensor_airspeed_sim" status >/dev/null 2>&1; then
+      break                       # disabled (saved param) and not running
+    fi
     if "$PX4_BIN/px4-sensor_airspeed_sim" status >/dev/null 2>&1; then
       "$PX4_BIN/px4-sensor_airspeed_sim" stop >/dev/null 2>&1
       "$PX4_BIN/px4-param" set SENS_EN_ARSPDSIM 0 >/dev/null 2>&1
