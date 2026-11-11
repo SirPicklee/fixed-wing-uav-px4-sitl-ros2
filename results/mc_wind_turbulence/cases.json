@@ -1,0 +1,122 @@
+[
+  {
+    "case": 0,
+    "wind_from_deg": 64.4,
+    "wind_speed": 6.4,
+    "wind_ned": "-2.76 -5.77 0",
+    "w20": 7.2,
+    "turb_seed": 171429434
+  },
+  {
+    "case": 1,
+    "wind_from_deg": 127.8,
+    "wind_speed": 7.91,
+    "wind_ned": "4.84 -6.25 0",
+    "w20": 13.94,
+    "turb_seed": 795643823
+  },
+  {
+    "case": 2,
+    "wind_from_deg": 63.8,
+    "wind_speed": 6.53,
+    "wind_ned": "-2.88 -5.86 0",
+    "w20": 4.59,
+    "turb_seed": 355781145
+  },
+  {
+    "case": 3,
+    "wind_from_deg": 331.1,
+    "wind_speed": 6.36,
+    "wind_ned": "-5.57 3.07 0",
+    "w20": 11.59,
+    "turb_seed": 2076535512
+  },
+  {
+    "case": 4,
+    "wind_from_deg": 185.5,
+    "wind_speed": 8.26,
+    "wind_ned": "8.22 0.79 0",
+    "w20": 6.91,
+    "turb_seed": 988131085
+  },
+  {
+    "case": 5,
+    "wind_from_deg": 100.0,
+    "wind_speed": 2.26,
+    "wind_ned": "0.39 -2.23 0",
+    "w20": 8.1,
+    "turb_seed": 727594203
+  },
+  {
+    "case": 6,
+    "wind_from_deg": 155.1,
+    "wind_speed": 6.63,
+    "wind_ned": "6.02 -2.79 0",
+    "w20": 0.2,
+    "turb_seed": 1000337184
+  },
+  {
+    "case": 7,
+    "wind_from_deg": 131.5,
+    "wind_speed": 1.95,
+    "wind_ned": "1.29 -1.46 0",
+    "w20": 9.16,
+    "turb_seed": 961432512
+  },
+  {
+    "case": 8,
+    "wind_from_deg": 156.7,
+    "wind_speed": 3.0,
+    "wind_ned": "2.76 -1.19 0",
+    "w20": 3.23,
+    "turb_seed": 2008422700
+  },
+  {
+    "case": 9,
+    "wind_from_deg": 287.1,
+    "wind_speed": 6.07,
+    "wind_ned": "-1.78 5.80 0",
+    "w20": 5.31,
+    "turb_seed": 1878240859
+  },
+  {
+    "case": 10,
+    "wind_from_deg": 340.9,
+    "wind_speed": 5.63,
+    "wind_ned": "-5.32 1.85 0",
+    "w20": 6.66,
+    "turb_seed": 900758260
+  },
+  {
+    "case": 11,
+    "wind_from_deg": 115.0,
+    "wind_speed": 6.96,
+    "wind_ned": "2.94 -6.31 0",
+    "w20": 4.83,
+    "turb_seed": 1933700788
+  },
+  {
+    "case": 12,
+    "wind_from_deg": 94.2,
+    "wind_speed": 7.01,
+    "wind_ned": "0.51 -6.99 0",
+    "w20": 3.51,
+    "turb_seed": 1159770943
+  },
+  {
+    "case": 13,
+    "wind_from_deg": 208.8,
+    "wind_speed": 1.89,
+    "wind_ned": "1.66 0.91 0",
+    "w20": 11.26,
+    "turb_seed": 1058946355
+  },
+  {
+    "case": 14,
+    "wind_from_deg": 197.5,
+    "wind_speed": 6.22,
+    "wind_ned": "5.93 1.86 0",
+    "w20": 5.73,
+    "turb_seed": 770410468
+  }
+]
