@@ -49,3 +49,18 @@ def servo_controls(cmd, limits):
 def motor_controls(cmd):
     """Return the 12 normalized actuator_motors values for a Command."""
     return [max(0.0, min(1.0, cmd.throttle))] + [NAN] * 11
+
+
+EARTH_RADIUS_M = 6378137.0
+
+
+def latlon_to_ne(lat, lon, lat0, lon0):
+    """
+    Return north/east [m] of (lat, lon) relative to (lat0, lon0), in degrees.
+
+    Flat-earth inverse of scripts/fly_mission.py ne_to_latlon, which builds
+    the mission waypoints, so both use exactly the same frame.
+    """
+    north = math.radians(lat - lat0) * EARTH_RADIUS_M
+    east = math.radians(lon - lon0) * EARTH_RADIUS_M * math.cos(math.radians(lat0))
+    return north, east

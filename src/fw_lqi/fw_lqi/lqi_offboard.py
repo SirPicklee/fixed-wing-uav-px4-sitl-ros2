@@ -12,6 +12,11 @@ DO_LAND_START so PX4 resumes the mission at the landing sequence.
 With `engage` false (default) the node only shadows the flight: it runs
 guidance and control on the live state and logs the commands it would
 send, but publishes nothing to PX4.
+
+Position is taken from the global position relative to home (latched at
+takeover), the frame the mission waypoints are defined in. The EKF local
+origin is not used for navigation: it can sit far from home (1.8 km was
+observed after a long wait on the ground with EKF2_MAG_TYPE=6).
 """
 
 import csv
@@ -19,12 +24,13 @@ import math
 
 from fw_lqi.guidance import L1Guidance
 from fw_lqi.lqi_core import LqiController, Measurement, Reference
-from fw_lqi.px4_interface import (motor_controls, ned_to_body, quat_to_roll_pitch,
-                                  servo_controls)
-from px4_msgs.msg import (ActuatorMotors, ActuatorServos, AirspeedValidated,
-                          OffboardControlMode, VehicleCommand, VehicleOdometry,
-                          VehicleStatus)
+from fw_lqi.px4_interface import (latlon_to_ne, motor_controls, ned_to_body,
+                                  quat_to_roll_pitch, servo_controls)
+from px4_msgs.msg import (ActuatorMotors, ActuatorServos, AirspeedValidated, HomePosition,
+                          OffboardControlMode, VehicleCommand, VehicleGlobalPosition,
+                          VehicleOdometry, VehicleStatus)
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import (DurabilityPolicy, HistoryPolicy, qos_profile_sensor_data, QoSProfile,
                        ReliabilityPolicy)
@@ -61,6 +67,8 @@ class LqiOffboard(Node):
         self.state = 'WAIT'
         self.nav_state, self.armed = -1, False
         self.airspeed = math.nan
+        self.gpos = None                      # (lat, lon, alt) of the latest valid fix
+        self.home = None                      # (lat, lon, alt), frozen at takeover
         self.last_us = None
         self.t0_us = None
         self.file = open(g['log_file'], 'w', newline='')
@@ -79,6 +87,9 @@ class LqiOffboard(Node):
         self.create_subscription(VehicleStatus, '/fmu/out/vehicle_status_v1', self.on_status, sd)
         self.create_subscription(AirspeedValidated, '/fmu/out/airspeed_validated_v1',
                                  self.on_airspeed, sd)
+        self.create_subscription(VehicleGlobalPosition, '/fmu/out/vehicle_global_position',
+                                 self.on_global, sd)
+        self.create_subscription(HomePosition, '/fmu/out/home_position_v1', self.on_home, sd)
         self.create_subscription(VehicleOdometry, '/fmu/out/vehicle_odometry', self.on_odom, sd)
         mode = 'ENGAGE' if self.engage else 'SHADOW (no commands sent)'
         self.get_logger().info(f'{mode}, {len(self.guide.waypoints)} waypoints, '
@@ -91,6 +102,14 @@ class LqiOffboard(Node):
     def on_airspeed(self, msg):
         self.airspeed = msg.true_airspeed_m_s
 
+    def on_global(self, msg):
+        if msg.lat_lon_valid and msg.alt_valid:
+            self.gpos = (msg.lat, msg.lon, msg.alt)
+
+    def on_home(self, msg):
+        if self.state == 'WAIT' and msg.valid_hpos and msg.valid_alt:
+            self.home = (msg.lat, msg.lon, msg.alt)
+
     def send_command(self, command, stamp, p1=0.0, p2=0.0):
         msg = VehicleCommand(timestamp=stamp, command=command, param1=p1, param2=p2,
                              target_system=1, target_component=1, source_system=1,
@@ -101,9 +120,11 @@ class LqiOffboard(Node):
         stamp = msg.timestamp                 # PX4 clock: timestamp sync is disabled
         dt = 0.0 if self.last_us is None else min(max((stamp - self.last_us) * 1e-6, 0.0), 0.1)
         self.last_us = stamp
-        n, e, d = msg.position
+        if self.gpos is None or self.home is None:
+            return
+        n, e = latlon_to_ne(self.gpos[0], self.gpos[1], self.home[0], self.home[1])
+        altitude = self.gpos[2] - self.home[2]
         vn, ve, vd = msg.velocity
-        altitude = -d
         if self.engage:
             self.pub_mode.publish(OffboardControlMode(timestamp=stamp, direct_actuator=True))
 
@@ -117,7 +138,8 @@ class LqiOffboard(Node):
                 if self.engage:
                     self.send_command(VehicleCommand.VEHICLE_CMD_DO_SET_MODE, stamp,
                                       1.0, PX4_MODE_OFFBOARD)
-                self.get_logger().info(f'Taking over at {altitude:.1f} m')
+                self.get_logger().info(f'Taking over at {altitude:.1f} m, '
+                                       f'{n:.0f} m N / {e:.0f} m E of home')
             return
         if self.state != 'ACTIVE':
             return
@@ -159,8 +181,13 @@ def main():
     node = LqiOffboard()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except RuntimeError:
+        # Ctrl+C while rclpy is taking a message surfaces as a RuntimeError
+        # from the C extension; only swallow it once the context is shut down.
+        if rclpy.ok():
+            raise
     finally:
         node.file.close()
         node.destroy_node()
