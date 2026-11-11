@@ -71,6 +71,7 @@ if(BUILD_TESTING)
     test/test_python_parity.cpp
     test/test_frames.cpp
     test/test_px4_actuators.cpp
+    test/test_wind.cpp
   )
   target_link_libraries(fw_aero_tests PRIVATE fw_aero GTest::gtest_main)
   target_compile_definitions(fw_aero_tests PRIVATE
