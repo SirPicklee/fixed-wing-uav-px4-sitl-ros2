@@ -20,6 +20,7 @@ setup(
     extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
+            'lqi_offboard = fw_lqi.lqi_offboard:main',
         ],
     },
 )
