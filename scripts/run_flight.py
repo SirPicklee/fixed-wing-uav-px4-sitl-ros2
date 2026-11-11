@@ -21,6 +21,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -133,11 +134,16 @@ def main():
         result["node_took_over"] = "Taking over" in node_text
         result["node_finished_legs"] = "Last waypoint reached" in node_text
         result["node_aborted"] = "stopping" in node_text
+        took = re.search(r"Taking over at ([-\d.]+) m", node_text)
+        result["takeover_alt"] = float(took.group(1)) if took else None
+        # A late takeover means PX4 flew part of the legs: not a valid LQI flight.
+        on_time = result["takeover_alt"] is not None and result["takeover_alt"] < 65.0
         if result.get("landed"):
             result["success"] = not result["node_aborted"] and (
-                args.controller == "px4" or result["node_finished_legs"])
+                args.controller == "px4" or (result["node_finished_legs"] and on_time))
             if not result["success"]:
-                result["reason"] = "LQI did not complete the legs"
+                result["reason"] = ("late takeover" if result["node_finished_legs"]
+                                    else "LQI did not complete the legs")
         elif not result["reason"]:
             result["reason"] = "no landing"
         logs = sorted(LOG_ROOT.glob("*/*.ulg"), key=os.path.getmtime)

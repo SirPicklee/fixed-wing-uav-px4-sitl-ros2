@@ -13,10 +13,14 @@ With `engage` false (default) the node only shadows the flight: it runs
 guidance and control on the live state and logs the commands it would
 send, but publishes nothing to PX4.
 
-Position is taken from the global position relative to home (latched at
-takeover), the frame the mission waypoints are defined in. The EKF local
-origin is not used for navigation: it can sit far from home (1.8 km was
-observed after a long wait on the ground with EKF2_MAG_TYPE=6).
+Position is taken from the global position relative to home, the frame
+the mission waypoints are defined in. Home is latched from the global
+position when the vehicle arms, which is where PX4 sets its own home; the
+node must therefore be running before arming. The home_position topic is
+not used: PX4 publishes it only on change, so a subscriber can miss it for
+minutes (seen in a Monte Carlo run, where the takeover came 80 s late).
+The EKF local origin is not used either: it can sit far from home (1.8 km
+was observed after a long wait on the ground with EKF2_MAG_TYPE=6).
 """
 
 import csv
@@ -26,7 +30,7 @@ from fw_lqi.guidance import L1Guidance
 from fw_lqi.lqi_core import LqiController, Measurement, Reference
 from fw_lqi.px4_interface import (latlon_to_ne, motor_controls, ned_to_body,
                                   quat_to_roll_pitch, servo_controls)
-from px4_msgs.msg import (ActuatorMotors, ActuatorServos, AirspeedValidated, HomePosition,
+from px4_msgs.msg import (ActuatorMotors, ActuatorServos, AirspeedValidated,
                           OffboardControlMode, VehicleCommand, VehicleGlobalPosition,
                           VehicleOdometry, VehicleStatus)
 import rclpy
@@ -68,7 +72,7 @@ class LqiOffboard(Node):
         self.nav_state, self.armed = -1, False
         self.airspeed = math.nan
         self.gpos = None                      # (lat, lon, alt) of the latest valid fix
-        self.home = None                      # (lat, lon, alt), frozen at takeover
+        self.home = None                      # (lat, lon, alt), latched at arming
         self.last_us = None
         self.t0_us = None
         self.file = open(g['log_file'], 'w', newline='')
@@ -89,15 +93,19 @@ class LqiOffboard(Node):
                                  self.on_airspeed, sd)
         self.create_subscription(VehicleGlobalPosition, '/fmu/out/vehicle_global_position',
                                  self.on_global, sd)
-        self.create_subscription(HomePosition, '/fmu/out/home_position_v1', self.on_home, sd)
         self.create_subscription(VehicleOdometry, '/fmu/out/vehicle_odometry', self.on_odom, sd)
         mode = 'ENGAGE' if self.engage else 'SHADOW (no commands sent)'
         self.get_logger().info(f'{mode}, {len(self.guide.waypoints)} waypoints, '
                                f'engage above {self.engage_alt:.0f} m')
 
     def on_status(self, msg):
+        armed = msg.arming_state == VehicleStatus.ARMING_STATE_ARMED
+        if armed and not self.armed and self.gpos is not None:
+            self.home = self.gpos
+            self.get_logger().info(f'Armed: home latched at {self.home[0]:.7f}, '
+                                   f'{self.home[1]:.7f}, {self.home[2]:.1f} m')
+        self.armed = armed
         self.nav_state = msg.nav_state
-        self.armed = msg.arming_state == VehicleStatus.ARMING_STATE_ARMED
 
     def on_airspeed(self, msg):
         self.airspeed = msg.true_airspeed_m_s
@@ -105,10 +113,6 @@ class LqiOffboard(Node):
     def on_global(self, msg):
         if msg.lat_lon_valid and msg.alt_valid:
             self.gpos = (msg.lat, msg.lon, msg.alt)
-
-    def on_home(self, msg):
-        if self.state == 'WAIT' and msg.valid_hpos and msg.valid_alt:
-            self.home = (msg.lat, msg.lon, msg.alt)
 
     def send_command(self, command, stamp, p1=0.0, p2=0.0):
         msg = VehicleCommand(timestamp=stamp, command=command, param1=p1, param2=p2,
