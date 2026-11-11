@@ -9,8 +9,12 @@ position is replayed through the L1 guidance leg logic (same waypoints and
 leg-switch rule) to assign each sample to a leg; the window ends when that
 logic reports the last leg done. Lateral error is the distance to the
 planned path (the polyline start -> WP1 -> ... -> WP4), which does not
-favour either way of turning a corner. Altitude and airspeed errors
-exclude the first SETTLE seconds of each leg, where the reference steps.
+favour either way of turning a corner. Altitude is scored against two
+references, because the controllers change altitude differently: the
+LQI steps to the next waypoint altitude when a leg starts (scored
+"step", excluding the first SETTLE seconds of each leg), PX4 ramps it
+along the leg (scored "ramp": linear in along-track distance from the
+previous waypoint altitude). Airspeed errors also exclude SETTLE.
 
 Usage:
   python tools/compare_lqi_px4.py PX4_FLIGHT.ulg LQI_FLIGHT.ulg
@@ -47,6 +51,19 @@ def path_distance(n, e, points):
     return best
 
 
+def ramp_altitude(leg, n, e, start):
+    """Altitude reference ramping linearly along each leg between waypoints."""
+    points = [start] + list(WAYPOINTS)
+    out = np.empty(len(leg))
+    for k in range(len(WAYPOINTS)):
+        sel = leg == k
+        (an, ae, ah), (bn, be, bh) = points[k], points[k + 1]
+        dn, de = bn - an, be - ae
+        s = np.clip(((n[sel] - an) * dn + (e[sel] - ae) * de) / (dn * dn + de * de), 0.0, 1.0)
+        out[sel] = ah + s * (bh - ah)
+    return out
+
+
 def score(path):
     """Return per-sample arrays for one flight over the scored window."""
     ulog = ULog(path, ["vehicle_local_position", "vehicle_land_detected", "vehicle_attitude",
@@ -72,6 +89,7 @@ def score(path):
         alt_ref.append(g.altitude)
     m = len(leg)
     t = t[:m]
+    alt_ramp = ramp_altitude(np.array(leg), n[:m], e[:m], (n[0], e[0], alt[0]))
     xt = path_distance(n[:m], e[:m], [(n[0], e[0])] + [wp[:2] for wp in WAYPOINTS])
 
     att = topic(ulog, "vehicle_attitude")
@@ -84,7 +102,8 @@ def score(path):
     sv = topic(ulog, "actuator_servos")
     elev = -interp_to(t, sv["timestamp"] * 1e-6, sv["control[2]"]) * MAX_ELEV
     return {"name": os.path.basename(path), "t": t - t[0], "leg": np.array(leg),
-            "xt": xt, "eh": np.array(alt_ref) - alt[:m], "ev": tas - V_REF,
+            "xt": xt, "eh": np.array(alt_ref) - alt[:m], "er": alt_ramp - alt[:m],
+            "ev": tas - V_REF,
             "roll": np.degrees(roll), "thr": thr, "elev": elev}
 def rms(x):
     x = x[np.isfinite(x)]
@@ -109,8 +128,10 @@ def main():
         ("legs time [s]", lambda d, s: d["t"][-1]),
         ("path deviation RMS [m]", lambda d, s: rms(d["xt"])),
         ("path deviation max [m]", lambda d, s: np.nanmax(np.abs(d["xt"]))),
-        ("altitude err RMS, settled [m]", lambda d, s: rms(d["eh"][s])),
-        ("altitude err max, settled [m]", lambda d, s: np.nanmax(np.abs(d["eh"][s]))),
+        ("altitude err RMS, step [m]", lambda d, s: rms(d["eh"][s])),
+        ("altitude err max, step [m]", lambda d, s: np.nanmax(np.abs(d["eh"][s]))),
+        ("altitude err RMS, ramp [m]", lambda d, s: rms(d["er"])),
+        ("altitude err max, ramp [m]", lambda d, s: np.nanmax(np.abs(d["er"]))),
         ("airspeed err RMS, settled [m/s]", lambda d, s: rms(d["ev"][s])),
         ("airspeed min [m/s]", lambda d, s: np.nanmin(d["ev"]) + V_REF),
         ("max |bank| [deg]", lambda d, s: np.nanmax(np.abs(d["roll"]))),
@@ -122,13 +143,15 @@ def main():
         vals = [f(d, settled(d)) for _, d in flights]
         print(f"  {name:32s} {vals[0]:9.2f} {vals[1]:9.2f}")
     print()
-    print(f"  {'leg':4s} " + " ".join(f"{lab + ' path rms':>13s} {lab + ' h rms':>10s}"
-                                      for lab, _ in flights))
+    print(f"  {'leg':4s} " + " ".join(
+        f"{lab + ' path':>8s} {lab + ' step':>8s} {lab + ' ramp':>8s}" for lab, _ in flights))
     for k in range(len(WAYPOINTS)):
         cells = []
         for _, d in flights:
             s = settled(d) & (d["leg"] == k)
-            cells.append(f"{rms(d['xt'][d['leg'] == k]):13.1f} {rms(d['eh'][s]):10.2f}")
+            on_leg = d["leg"] == k
+            cells.append(f"{rms(d['xt'][on_leg]):8.1f} {rms(d['eh'][s]):8.2f} "
+                         f"{rms(d['er'][on_leg]):8.2f}")
         print(f"  {k + 1:<4d} " + " ".join(cells))
 
 
