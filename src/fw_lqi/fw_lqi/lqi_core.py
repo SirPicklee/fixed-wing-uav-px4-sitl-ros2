@@ -1,4 +1,5 @@
-"""LQI flight controller core (numpy only, no ROS dependency).
+"""
+LQI flight controller core (numpy only, no ROS dependency).
 
 Longitudinal: x = [u, w, q, theta, e_h, xi_v]       -> [elevator, throttle]
 Lateral:      x = [v, p, r, phi - phi_ref, xi_phi]  -> [aileron, rudder]
@@ -85,11 +86,13 @@ class LqiController:
         """Advance the integrators by dt and return the actuator command."""
         lim = self.limits
         e_h = float(np.clip(ref.altitude - m.altitude, -lim.altitude_error, lim.altitude_error))
-        self.xi_v = float(np.clip(self.xi_v + (ref.airspeed - m.airspeed) * dt, -lim.xi_v, lim.xi_v))
+        self.xi_v = float(np.clip(self.xi_v + (ref.airspeed - m.airspeed) * dt,
+                                  -lim.xi_v, lim.xi_v))
         roll_err = m.phi - ref.roll
         self.xi_phi = float(np.clip(self.xi_phi - roll_err * dt, -lim.xi_phi, lim.xi_phi))
 
-        x_lon = np.array([m.u - self.u0, m.w - self.w0, m.q, m.theta - self.theta0, e_h, self.xi_v])
+        x_lon = np.array([m.u - self.u0, m.w - self.w0, m.q, m.theta - self.theta0,
+                          e_h, self.xi_v])
         x_lat = np.array([m.v, m.p, m.r, roll_err, self.xi_phi])
         d_lon = -self.k_lon @ x_lon
         d_lat = -self.k_lat @ x_lat
