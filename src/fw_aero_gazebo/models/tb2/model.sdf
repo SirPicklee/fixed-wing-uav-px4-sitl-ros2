@@ -126,31 +126,6 @@
       </sensor>
     </link>
     
-    <!-- Pitot tube: a Gazebo air_speed sensor on its own link, as PX4's
-         gz_bridge expects (.../link/airspeed_link/sensor/air_speed/air_speed).
-         It measures airspeed from the simulated motion of the link. PX4's
-         sensor_airspeed_sim module (SENS_EN_ARSPDSIM) instead derives it from
-         the EKF estimate; it froze during a takeoff roll, so PX4 never reached
-         its rotation speed. Mass is negligible (0.015 kg at the nose). -->
-    <link name="airspeed_link">
-      <pose>3.3 0 0 0 0 0</pose>
-      <inertial>
-        <mass>0.015</mass>
-        <inertia>
-          <ixx>1e-05</ixx><iyy>1e-05</iyy><izz>1e-05</izz>
-          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
-        </inertia>
-      </inertial>
-      <sensor name="air_speed" type="air_speed">
-        <gz_frame_id>airspeed_link</gz_frame_id>
-        <always_on>1</always_on>
-        <update_rate>50</update_rate>
-      </sensor>
-    </link>
-    <joint name="airspeed_joint" type="fixed">
-      <parent>base_link</parent>
-      <child>airspeed_link</child>
-    </joint>
 
     <plugin filename="FixedWingAeroSystem"
             name="fw_aero_gazebo::FixedWingAeroSystem">
@@ -158,6 +133,11 @@
       <reference_altitude>0</reference_altitude>
       <log_file>/tmp/tb2_flight.csv</log_file>
       <log_rate>20</log_rate>
+      <!-- Pitot tube 3.3 m ahead of the CG, computed by this plugin from the
+           air-relative velocity (the gz air_speed sensor ignores wind).
+           PX4 reads it on .../link/airspeed_link/sensor/air_speed/air_speed. -->
+      <publish_airspeed>true</publish_airspeed>
+      <pitot_x>3.3</pitot_x>
     </plugin>
   </model>
 </sdf>

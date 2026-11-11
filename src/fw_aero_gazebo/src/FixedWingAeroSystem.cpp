@@ -21,12 +21,21 @@
 //   <turbulence_w20>      Dryden W20 wind speed [m/s] (default 0, off);
 //                         light 7.7, moderate 15.4, severe 23.2 (15/30/45 kt)
 //   <turbulence_seed>     random seed of the turbulence (default 1)
+//   <publish_airspeed>    publish a pitot reading for PX4 (default false)
+//   <pitot_x>             pitot position ahead of the CG along body x [m]
 //
 // Aerodynamics use the air-relative velocity: ground velocity minus steady
 // wind minus turbulence gusts (fw_aero/wind.hpp). Gust angular rates are
 // not modelled.
+//
+// The pitot reading replaces the gz-sensors air_speed sensor, whose wind
+// input is hard-coded to zero. It is published on the topic PX4's gz_bridge
+// subscribes to, .../link/airspeed_link/sensor/air_speed/air_speed, with
+// the same convention: signed dynamic pressure of the body-x air velocity
+// at the pitot [Pa] and static air temperature [K].
 
 #include <gz/msgs/actuators.pb.h>
+#include <gz/msgs/air_speed.pb.h>
 #include <gz/msgs/double.pb.h>
 
 #include <array>
@@ -45,11 +54,14 @@
 #include <gz/sim/Link.hh>
 #include <gz/sim/Model.hh>
 #include <gz/sim/System.hh>
+#include <gz/sim/Util.hh>
+#include <gz/sim/World.hh>
 #include <gz/sim/components/LinearVelocityCmd.hh>
 #include <gz/transport/Node.hh>
 #include <sdf/Element.hh>
 
 #include "fw_aero/aerodynamics.hpp"
+#include "fw_aero/atmosphere.hpp"
 #include "fw_aero/frames.hpp"
 #include "fw_aero/px4_actuators.hpp"
 #include "fw_aero/wind.hpp"
@@ -152,6 +164,18 @@ class FixedWingAeroSystem : public gz::sim::System,
             << "\n";
     }
 
+    publish_airspeed_ = sdf->Get<bool>("publish_airspeed", false).first;
+    pitot_x_ = sdf->Get<double>("pitot_x", 0.0).first;
+    if (publish_airspeed_) {
+      const std::string world_name =
+          gz::sim::World(gz::sim::worldEntity(ecm)).Name(ecm).value_or("default");
+      const std::string topic = "/world/" + world_name + "/model/" + model_name +
+                                "/link/airspeed_link/sensor/air_speed/air_speed";
+      airspeed_pub_ = node_.Advertise<gz::msgs::AirSpeed>(topic);
+      gzmsg << "[FixedWingAeroSystem] Pitot " << pitot_x_
+            << " m ahead of the CG, publishing on " << topic << "\n";
+    }
+
     gzmsg << "[FixedWingAeroSystem] Active on model [" << model_name
           << "], link [" << link_name << "], aircraft [" << params_.name
           << "], reference altitude " << reference_altitude_m_
@@ -222,6 +246,10 @@ class FixedWingAeroSystem : public gz::sim::System,
         ToGz(fw_aero::BodyFrdToWorldEnu(q_enu_flu, res.moment_body)));
 
     const double t = std::chrono::duration<double>(info.simTime).count();
+    if (publish_airspeed_ && t >= next_airspeed_time_s_) {
+      next_airspeed_time_s_ = t + kAirspeedPeriodS;
+      PublishAirspeed(info, v_air_frd, omega_frd, altitude_m);
+    }
     if (log_.is_open() && t >= next_log_time_s_) {
       next_log_time_s_ = t + log_period_s_;
       const auto& p = pose->Pos();
@@ -240,6 +268,27 @@ class FixedWingAeroSystem : public gz::sim::System,
   }
 
  private:
+  // Pitot reading: air velocity at the pitot = CG air velocity + omega x r.
+  void PublishAirspeed(const gz::sim::UpdateInfo& info,
+                       const Eigen::Vector3d& v_air_frd,
+                       const Eigen::Vector3d& omega_frd, double altitude_m) {
+    const Eigen::Vector3d v_pitot =
+        v_air_frd + omega_frd.cross(Eigen::Vector3d(pitot_x_, 0.0, 0.0));
+    const double u = v_pitot.x();
+    const fw_aero::AtmosphereState atm = fw_aero::atmosphere(altitude_m);
+    gz::msgs::AirSpeed msg;
+    const auto ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(info.simTime)
+            .count();
+    msg.mutable_header()->mutable_stamp()->set_sec(ns / 1000000000);
+    msg.mutable_header()->mutable_stamp()->set_nsec(ns % 1000000000);
+    msg.set_diff_pressure((u >= 0.0 ? 0.5 : -0.5) * atm.density * u * u);
+    msg.set_temperature(atm.temperature);
+    airspeed_pub_.Publish(msg);
+  }
+
+  static constexpr double kAirspeedPeriodS = 0.02;  // 50 Hz, as the sensor
+
   gz::sim::Model model_{gz::sim::kNullEntity};
   gz::sim::Link link_{gz::sim::kNullEntity};
   fw_aero::AircraftParams params_;
@@ -263,6 +312,12 @@ class FixedWingAeroSystem : public gz::sim::System,
   Eigen::Vector3d wind_enu_ = Eigen::Vector3d::Zero();
   fw_aero::DrydenTurbulence turbulence_{0.0, 1};
   Eigen::Vector3d gust_frd_ = Eigen::Vector3d::Zero();
+
+  // Pitot output.
+  bool publish_airspeed_ = false;
+  double pitot_x_ = 0.0;
+  double next_airspeed_time_s_ = 0.0;
+  gz::transport::Node::Publisher airspeed_pub_;
 };
 
 }  // namespace fw_aero_gazebo
