@@ -31,7 +31,8 @@
     <plugin filename="gz-sim-navsat-system" name="gz::sim::systems::NavSat"/>
     <plugin filename="gz-sim-magnetometer-system"
             name="gz::sim::systems::Magnetometer"/>
-
+    <plugin filename="gz-sim-air-speed-system"
+            name="gz::sim::systems::AirSpeed"/>
     <scene>
       <grid>false</grid>
       <ambient>0.4 0.4 0.4 1</ambient>
@@ -50,17 +51,24 @@
     <model name="ground_plane">
       <static>true</static>
       <link name="link">
+        <!-- Ground collision as an explicit box. gz-physics' DART backend
+             replaces a <plane> with a fixed 2100 m box and ignores <size>
+             (gz-physics 7, dartsim/src/SDFFeatures.cc, ConstructPlane), so the
+             aircraft fell off its edge at x = 1050 m during landing rollout. -->
         <collision name="collision">
-          <geometry><plane><normal>0 0 1</normal><size>10000 10000</size></plane></geometry>
+          <pose>0 0 -5 0 0 0</pose>
+          <geometry><box><size>20000 20000 10</size></box></geometry>
         </collision>
         <visual name="grass">
           <geometry><plane><normal>0 0 1</normal><size>10000 10000</size></plane></geometry>
           <material><diffuse>0.35 0.55 0.3 1</diffuse></material>
         </visual>
-        <!-- 1.2 km x 30 m runway along x (east), starting 100 m behind home -->
+        <!-- 2.5 km x 30 m runway along x (east), starting 200 m behind home.
+             Long because the model has no wheel brakes: the predicted
+             unbraked rollout from 32 m/s is ~1.6 km. -->
         <visual name="runway">
-          <pose>500 0 0.01 0 0 0</pose>
-          <geometry><box><size>1200 30 0.01</size></box></geometry>
+          <pose>1050 0 0.01 0 0 0</pose>
+          <geometry><box><size>2500 30 0.01</size></box></geometry>
           <material><diffuse>0.25 0.25 0.25 1</diffuse></material>
         </visual>
       </link>
