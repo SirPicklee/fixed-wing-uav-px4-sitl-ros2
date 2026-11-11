@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<!--
+  Standalone power-off glide test in a steady 10 m/s wind towards north (no PX4).
+
+  A TB2-class airframe starts level at 2000 m, heading east, with 46 m/s
+  forward speed, zero throttle and neutral controls. A statically stable
+  aircraft settles into its trimmed glide after a few phugoid cycles.
+  Expected values come from tools/glide_trim.py (independent of Gazebo).
+
+  Run headless and as fast as possible for 300 s of simulated time
+  (75000 iterations of 4 ms); see the README for the exact command.
+-->
+<sdf version="1.9">
+  <world name="glide_wind_test">
+    <physics name="4ms" type="ignored">
+      <max_step_size>0.004</max_step_size>
+      <!-- 0 = run as fast as possible -->
+      <real_time_factor>0</real_time_factor>
+    </physics>
+
+    <!-- Same g as the reference model (uavsim.atmosphere.G0) -->
+    <gravity>0 0 -9.80665</gravity>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+
+    <light type="directional" name="sun">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="tb2_glider">
+      <!-- Level, nose east (Gazebo yaw 0 = east) -->
+      <pose>0 0 2000 0 0 0</pose>
+
+      <link name="base_link">
+        <!-- Link origin = centre of gravity (required by the plugin) -->
+        <inertial>
+          <pose>0 0 0 0 0 0</pose>
+          <mass>650.0</mass>
+          <!-- Principal inertias from fw_aero::AircraftParams. The diagonal
+               is the same in FRD and FLU (180 deg rotation about x). -->
+          <inertia>
+            <ixx>1200.0</ixx>
+            <iyy>1500.0</iyy>
+            <izz>2400.0</izz>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyz>0</iyz>
+          </inertia>
+        </inertial>
+
+        <visual name="fuselage">
+          <geometry><box><size>6.5 0.6 0.6</size></box></geometry>
+        </visual>
+        <visual name="wing">
+          <!-- span b = 12 m, mean chord c = 0.92 m -->
+          <pose>0.3 0 0.2 0 0 0</pose>
+          <geometry><box><size>0.92 12.0 0.08</size></box></geometry>
+        </visual>
+        <visual name="tail">
+          <pose>-3.0 0 0.6 0 0 0</pose>
+          <geometry><box><size>0.6 0.08 1.0</size></box></geometry>
+        </visual>
+      </link>
+
+      <plugin filename="FixedWingAeroSystem"
+              name="fw_aero_gazebo::FixedWingAeroSystem">
+        <link_name>base_link</link_name>
+        <reference_altitude>0</reference_altitude>
+        <initial_airspeed>46.0</initial_airspeed>
+        <wind_ned>10 0 0</wind_ned>
+        <log_file>/tmp/glide_wind_test.csv</log_file>
+        <log_rate>10</log_rate>
+      </plugin>
+    </model>
+  </world>
+</sdf>

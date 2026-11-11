@@ -17,6 +17,14 @@
 //                         disabled; for standalone tests without PX4)
 //   <log_file>            CSV log path (default empty, disabled)
 //   <log_rate>            CSV log rate [Hz] (default 20)
+//   <wind_ned>            steady wind "north east down" [m/s] (default 0 0 0)
+//   <turbulence_w20>      Dryden W20 wind speed [m/s] (default 0, off);
+//                         light 7.7, moderate 15.4, severe 23.2 (15/30/45 kt)
+//   <turbulence_seed>     random seed of the turbulence (default 1)
+//
+// Aerodynamics use the air-relative velocity: ground velocity minus steady
+// wind minus turbulence gusts (fw_aero/wind.hpp). Gust angular rates are
+// not modelled.
 
 #include <gz/msgs/actuators.pb.h>
 #include <gz/msgs/double.pb.h>
@@ -44,6 +52,7 @@
 #include "fw_aero/aerodynamics.hpp"
 #include "fw_aero/frames.hpp"
 #include "fw_aero/px4_actuators.hpp"
+#include "fw_aero/wind.hpp"
 
 namespace fw_aero_gazebo {
 
@@ -92,6 +101,13 @@ class FixedWingAeroSystem : public gz::sim::System,
         sdf->Get<double>("reference_altitude", 0.0).first;
     initial_airspeed_ = sdf->Get<double>("initial_airspeed", 0.0).first;
 
+    const gz::math::Vector3d wind_ned =
+        sdf->Get<gz::math::Vector3d>("wind_ned", gz::math::Vector3d::Zero).first;
+    wind_enu_ = fw_aero::NedToEnu(ToEigen(wind_ned));
+    const double w20 = sdf->Get<double>("turbulence_w20", 0.0).first;
+    const unsigned int seed = sdf->Get<unsigned int>("turbulence_seed", 1u).first;
+    turbulence_ = fw_aero::DrydenTurbulence(w20, seed);
+
     const std::string log_file =
         sdf->Get<std::string>("log_file", "").first;
     log_period_s_ = 1.0 / sdf->Get<double>("log_rate", 20.0).first;
@@ -99,7 +115,8 @@ class FixedWingAeroSystem : public gz::sim::System,
       log_.open(log_file);
       if (log_) {
         log_ << "t,x,y,z,vx,vy,vz,airspeed,alpha,beta,p,q,r,"
-                "elevator,aileron,rudder,throttle,fx,fy,fz,l,m,n\n";
+                "elevator,aileron,rudder,throttle,fx,fy,fz,l,m,n,"
+                "gust_u,gust_v,gust_w\n";
       } else {
         gzerr << "[FixedWingAeroSystem] Cannot open log file " << log_file
               << "\n";
@@ -138,7 +155,9 @@ class FixedWingAeroSystem : public gz::sim::System,
     gzmsg << "[FixedWingAeroSystem] Active on model [" << model_name
           << "], link [" << link_name << "], aircraft [" << params_.name
           << "], reference altitude " << reference_altitude_m_
-          << " m, initial airspeed " << initial_airspeed_ << " m/s\n";
+          << " m, initial airspeed " << initial_airspeed_ << " m/s, wind NED ["
+          << wind_ned << "] m/s, turbulence W20 " << w20 << " m/s (seed " << seed
+          << ")\n";
   }
 
   void PreUpdate(const gz::sim::UpdateInfo& info,
@@ -189,8 +208,14 @@ class FixedWingAeroSystem : public gz::sim::System,
         fw_aero::MapPx4Commands(servo, motor, mapping_);
 
     const double altitude_m = reference_altitude_m_ + pose->Pos().Z();
+    // Air-relative velocity = ground velocity - steady wind - turbulence.
+    const Eigen::Vector3d v_rel_frd =
+        v_frd - fw_aero::WorldEnuToBodyFrd(q_enu_flu, wind_enu_);
+    const double dt = std::chrono::duration<double>(info.dt).count();
+    gust_frd_ = turbulence_.Step(altitude_m, v_rel_frd.norm(), dt);
+    const Eigen::Vector3d v_air_frd = v_rel_frd - gust_frd_;
     const fw_aero::AeroResult res = fw_aero::aero_forces_moments(
-        params_, v_frd, omega_frd, controls, altitude_m);
+        params_, v_air_frd, omega_frd, controls, altitude_m);
 
     link_.AddWorldWrench(
         ecm, ToGz(fw_aero::BodyFrdToWorldEnu(q_enu_flu, res.force_body)),
@@ -208,7 +233,9 @@ class FixedWingAeroSystem : public gz::sim::System,
            << controls.rudder << ',' << controls.throttle << ','
            << res.force_body.x() << ',' << res.force_body.y() << ','
            << res.force_body.z() << ',' << res.moment_body.x() << ','
-           << res.moment_body.y() << ',' << res.moment_body.z() << '\n';
+           << res.moment_body.y() << ',' << res.moment_body.z() << ','
+           << gust_frd_.x() << ',' << gust_frd_.y() << ',' << gust_frd_.z()
+           << '\n';
     }
   }
 
@@ -231,6 +258,11 @@ class FixedWingAeroSystem : public gz::sim::System,
   // rudder (servo_0 .. servo_3).
   std::array<double, 4> servo_rad_{};
   double motor_command_ = 0.0;
+
+  // Atmospheric disturbances.
+  Eigen::Vector3d wind_enu_ = Eigen::Vector3d::Zero();
+  fw_aero::DrydenTurbulence turbulence_{0.0, 1};
+  Eigen::Vector3d gust_frd_ = Eigen::Vector3d::Zero();
 };
 
 }  // namespace fw_aero_gazebo
