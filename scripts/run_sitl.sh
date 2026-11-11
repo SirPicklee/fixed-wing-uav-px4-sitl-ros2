@@ -6,6 +6,8 @@
 #         WIND_NED="0 -8 0" TURB_W20=7.7 TURB_SEED=3 scripts/run_sitl.sh
 #           steady wind north/east/down [m/s], Dryden W20 [m/s] and seed
 #           (defaults: no wind, no turbulence, seed 1)
+#         SIM_SPEED=4 HEADLESS=1 scripts/run_sitl.sh
+#           run faster than real time (PX4 follows the Gazebo clock)
 #
 # Requires: colcon build (fw_aero_gazebo installed), PX4 built with
 # "make px4_sitl" in $PX4_DIR (default ~/PX4-Autopilot, v1.17.0).
@@ -55,6 +57,23 @@ echo "run_sitl: wind NED [$WIND_NED] m/s, turbulence W20 $TURB_W20 m/s, seed $TU
 
 gz sim -r -s -v 2 "$SHARE/worlds/$WORLD_NAME.sdf" &
 GZ_SERVER_PID=$!
+
+# --- Simulation speed -------------------------------------------------------
+# PX4 runs in lockstep with the Gazebo clock, so raising the real-time factor
+# speeds up the whole simulation without changing it. PX4_SIM_SPEED_FACTOR
+# makes PX4's rcS scale its link-loss timeouts to match.
+if [[ -n "${SIM_SPEED:-}" ]]; then
+  export PX4_SIM_SPEED_FACTOR="$SIM_SPEED"
+  for _ in $(seq 50); do
+    if gz service -s "/world/$WORLD_NAME/set_physics" --reqtype gz.msgs.Physics \
+         --reptype gz.msgs.Boolean --timeout 1000 \
+         --req "real_time_factor: $SIM_SPEED" 2>/dev/null | grep -q "data: true"; then
+      echo "run_sitl: simulation speed x$SIM_SPEED"
+      break
+    fi
+    sleep 0.2
+  done
+fi
 GZ_GUI_PID=""
 if [[ -z "${HEADLESS:-}" ]]; then
   gz sim -g >/dev/null 2>&1 &
