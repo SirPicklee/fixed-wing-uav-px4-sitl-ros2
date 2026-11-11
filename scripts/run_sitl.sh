@@ -3,6 +3,9 @@
 #
 # Usage:  scripts/run_sitl.sh            (with Gazebo GUI)
 #         HEADLESS=1 scripts/run_sitl.sh (server only)
+#         WIND_NED="0 -8 0" TURB_W20=7.7 TURB_SEED=3 scripts/run_sitl.sh
+#           steady wind north/east/down [m/s], Dryden W20 [m/s] and seed
+#           (defaults: no wind, no turbulence, seed 1)
 #
 # Requires: colcon build (fw_aero_gazebo installed), PX4 built with
 # "make px4_sitl" in $PX4_DIR (default ~/PX4-Autopilot, v1.17.0).
@@ -32,6 +35,24 @@ fi
 export GZ_SIM_SYSTEM_PLUGIN_PATH="$REPO/install/fw_aero_gazebo/lib${GZ_SIM_SYSTEM_PLUGIN_PATH:+:$GZ_SIM_SYSTEM_PLUGIN_PATH}"
 export GZ_SIM_RESOURCE_PATH="$SHARE/models${GZ_SIM_RESOURCE_PATH:+:$GZ_SIM_RESOURCE_PATH}"
 
+# --- Wind and turbulence ----------------------------------------------------
+# A temporary copy of the model with the wind parameters added to the
+# fw_aero plugin is put first on the resource path, so model://tb2 in the
+# world resolves to it; the installed model is left untouched.
+WIND_NED="${WIND_NED:-0 0 0}"
+TURB_W20="${TURB_W20:-0}"
+TURB_SEED="${TURB_SEED:-1}"
+MODEL_TMP="$(mktemp -d /tmp/fw_sitl_models.XXXXXX)"
+cp -r "$SHARE/models/tb2" "$MODEL_TMP/"
+sed -i "s#      <pitot_x>3.3</pitot_x>#      <pitot_x>3.3</pitot_x>\n      <wind_ned>$WIND_NED</wind_ned>\n      <turbulence_w20>$TURB_W20</turbulence_w20>\n      <turbulence_seed>$TURB_SEED</turbulence_seed>#" \
+  "$MODEL_TMP/tb2/model.sdf"
+if ! grep -q "<wind_ned>" "$MODEL_TMP/tb2/model.sdf"; then
+  echo "run_sitl: could not add the wind parameters to the model" >&2
+  exit 1
+fi
+export GZ_SIM_RESOURCE_PATH="$MODEL_TMP:$GZ_SIM_RESOURCE_PATH"
+echo "run_sitl: wind NED [$WIND_NED] m/s, turbulence W20 $TURB_W20 m/s, seed $TURB_SEED"
+
 gz sim -r -s -v 2 "$SHARE/worlds/$WORLD_NAME.sdf" &
 GZ_SERVER_PID=$!
 GZ_GUI_PID=""
@@ -41,6 +62,7 @@ if [[ -z "${HEADLESS:-}" ]]; then
 fi
 cleanup() {
   kill "$GZ_SERVER_PID" ${GZ_GUI_PID:+"$GZ_GUI_PID"} 2>/dev/null || true
+  rm -rf "$MODEL_TMP"
 }
 trap cleanup EXIT
 
