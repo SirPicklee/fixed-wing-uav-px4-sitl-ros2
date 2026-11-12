@@ -1,0 +1,24 @@
+# Build all packages and run all tests (C++ gtest, Python pytest, ament
+# flake8/pep257) on Ubuntu 24.04 with ROS 2 Jazzy and Gazebo Harmonic.
+# The same scripts reproduce it locally (see README).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: bash ci/install_deps.sh
+
+      - name: Fetch px4_msgs (message definitions of PX4 v1.17.0)
+        run: git clone --depth 1 --branch v1.17.0 https://github.com/PX4/px4_msgs.git src/px4_msgs
+
+      - name: Build and test
+        run: bash ci/build_and_test.sh
