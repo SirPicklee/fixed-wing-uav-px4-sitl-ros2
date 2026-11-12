@@ -1,0 +1,137 @@
+[
+  {
+    "case": 0,
+    "wind_from_deg": 64.4,
+    "wind_speed": 6.4,
+    "wind_ned": "-2.76 -5.77 0",
+    "w20": 7.2,
+    "turb_seed": 171429434,
+    "model": "mass=0.902 lift=0.977 drag=0.833 cm_alpha=0.999 control=0.979 thrust=1.041"
+  },
+  {
+    "case": 1,
+    "wind_from_deg": 127.8,
+    "wind_speed": 7.91,
+    "wind_ned": "4.84 -6.25 0",
+    "w20": 13.94,
+    "turb_seed": 795643823,
+    "model": "mass=0.960 lift=1.024 drag=1.024 cm_alpha=0.836 control=0.804 thrust=0.976"
+  },
+  {
+    "case": 2,
+    "wind_from_deg": 63.8,
+    "wind_speed": 6.53,
+    "wind_ned": "-2.88 -5.86 0",
+    "w20": 4.59,
+    "turb_seed": 355781145,
+    "model": "mass=1.079 lift=0.906 drag=1.185 cm_alpha=1.098 control=1.089 thrust=0.937"
+  },
+  {
+    "case": 3,
+    "wind_from_deg": 331.1,
+    "wind_speed": 6.36,
+    "wind_ned": "-5.57 3.07 0",
+    "w20": 11.59,
+    "turb_seed": 2076535512,
+    "model": "mass=1.017 lift=1.043 drag=1.164 cm_alpha=0.816 control=0.841 thrust=1.094"
+  },
+  {
+    "case": 4,
+    "wind_from_deg": 185.5,
+    "wind_speed": 8.26,
+    "wind_ned": "8.22 0.79 0",
+    "w20": 6.91,
+    "turb_seed": 988131085,
+    "model": "mass=1.059 lift=0.972 drag=0.854 cm_alpha=1.059 control=1.169 thrust=0.942"
+  },
+  {
+    "case": 5,
+    "wind_from_deg": 100.0,
+    "wind_speed": 2.26,
+    "wind_ned": "0.39 -2.23 0",
+    "w20": 8.1,
+    "turb_seed": 727594203,
+    "model": "mass=1.045 lift=0.937 drag=1.089 cm_alpha=0.856 control=1.197 thrust=0.910"
+  },
+  {
+    "case": 6,
+    "wind_from_deg": 155.1,
+    "wind_speed": 6.63,
+    "wind_ned": "6.02 -2.79 0",
+    "w20": 0.2,
+    "turb_seed": 1000337184,
+    "model": "mass=0.972 lift=1.028 drag=1.048 cm_alpha=0.868 control=0.840 thrust=0.961"
+  },
+  {
+    "case": 7,
+    "wind_from_deg": 131.5,
+    "wind_speed": 1.95,
+    "wind_ned": "1.29 -1.46 0",
+    "w20": 9.16,
+    "turb_seed": 961432512,
+    "model": "mass=0.944 lift=1.047 drag=0.936 cm_alpha=1.073 control=1.189 thrust=1.038"
+  },
+  {
+    "case": 8,
+    "wind_from_deg": 156.7,
+    "wind_speed": 3.0,
+    "wind_ned": "2.76 -1.19 0",
+    "w20": 3.23,
+    "turb_seed": 2008422700,
+    "model": "mass=0.971 lift=1.039 drag=1.156 cm_alpha=0.988 control=1.030 thrust=0.957"
+  },
+  {
+    "case": 9,
+    "wind_from_deg": 287.1,
+    "wind_speed": 6.07,
+    "wind_ned": "-1.78 5.80 0",
+    "w20": 5.31,
+    "turb_seed": 1878240859,
+    "model": "mass=1.034 lift=0.941 drag=1.090 cm_alpha=1.179 control=1.094 thrust=0.933"
+  },
+  {
+    "case": 10,
+    "wind_from_deg": 340.9,
+    "wind_speed": 5.63,
+    "wind_ned": "-5.32 1.85 0",
+    "w20": 6.66,
+    "turb_seed": 900758260,
+    "model": "mass=0.931 lift=1.078 drag=1.058 cm_alpha=0.842 control=1.142 thrust=1.014"
+  },
+  {
+    "case": 11,
+    "wind_from_deg": 115.0,
+    "wind_speed": 6.96,
+    "wind_ned": "2.94 -6.31 0",
+    "w20": 4.83,
+    "turb_seed": 1933700788,
+    "model": "mass=0.983 lift=1.064 drag=1.006 cm_alpha=1.100 control=0.927 thrust=0.905"
+  },
+  {
+    "case": 12,
+    "wind_from_deg": 94.2,
+    "wind_speed": 7.01,
+    "wind_ned": "0.51 -6.99 0",
+    "w20": 3.51,
+    "turb_seed": 1159770943,
+    "model": "mass=0.944 lift=1.035 drag=0.998 cm_alpha=1.075 control=1.036 thrust=1.035"
+  },
+  {
+    "case": 13,
+    "wind_from_deg": 208.8,
+    "wind_speed": 1.89,
+    "wind_ned": "1.66 0.91 0",
+    "w20": 11.26,
+    "turb_seed": 1058946355,
+    "model": "mass=0.974 lift=0.952 drag=1.072 cm_alpha=1.059 control=0.805 thrust=1.019"
+  },
+  {
+    "case": 14,
+    "wind_from_deg": 197.5,
+    "wind_speed": 6.22,
+    "wind_ned": "5.93 1.86 0",
+    "w20": 5.73,
+    "turb_seed": 770410468,
+    "model": "mass=0.958 lift=1.092 drag=0.859 cm_alpha=1.008 control=0.944 thrust=1.010"
+  }
+]
