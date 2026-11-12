@@ -58,14 +58,15 @@ def main():
             r = json.loads(res_file.read_text())
             row = {"case": c["case"], "controller": ctrl, "wind_speed": c["wind_speed"],
                    "wind_from_deg": c["wind_from_deg"], "w20": c["w20"],
-                   "success": r["success"], "reason": r["reason"]}
+                   "model": c.get("model", ""), "success": r["success"],
+                   "reason": r["reason"]}
             if r["success"] and r.get("ulog"):
                 row.update(flight_metrics(r["ulog"], ctrl))
             rows.append(row)
 
     names = [n for n, _, _ in METRICS] + ["alt_own_rms"]
     with open(camp / "metrics.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys())[:7] + names, restval="")
+        w = csv.DictWriter(f, fieldnames=list(rows[0].keys())[:8] + names, restval="")
         w.writeheader()
         w.writerows(rows)
 

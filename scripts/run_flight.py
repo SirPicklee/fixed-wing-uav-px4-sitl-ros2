@@ -89,6 +89,8 @@ def main():
     ap.add_argument("--wind", default="0 0 0", help='steady wind "north east down" [m/s]')
     ap.add_argument("--w20", type=float, default=0.0, help="Dryden W20 [m/s]")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--model", default="",
+                    help='model-uncertainty scales, e.g. "mass=1.05 lift=0.95 drag=1.1"')
     ap.add_argument("--speed", type=float, default=4.0, help="simulation speed factor")
     ap.add_argument("--timeout", type=float, default=900.0, help="wall-clock limit [s]")
     ap.add_argument("--out", type=Path, required=True)
@@ -99,9 +101,10 @@ def main():
     kill_leftovers()
     t_start = time.time()
     env = dict(os.environ, HEADLESS="1", SIM_SPEED=str(args.speed), WIND_NED=args.wind,
-               TURB_W20=str(args.w20), TURB_SEED=str(args.seed))
+               TURB_W20=str(args.w20), TURB_SEED=str(args.seed), MODEL_SCALES=args.model)
     result = {"controller": args.controller, "wind_ned": args.wind, "w20": args.w20,
-              "seed": args.seed, "speed": args.speed, "success": False, "reason": ""}
+              "seed": args.seed, "model": args.model, "speed": args.speed,
+              "success": False, "reason": ""}
     sitl = agent = node = mission = None
     try:
         # stdin stays open: PX4's shell would exit on end of input.

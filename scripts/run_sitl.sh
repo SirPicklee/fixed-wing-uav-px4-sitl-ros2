@@ -6,6 +6,10 @@
 #         WIND_NED="0 -8 0" TURB_W20=7.7 TURB_SEED=3 scripts/run_sitl.sh
 #           steady wind north/east/down [m/s], Dryden W20 [m/s] and seed
 #           (defaults: no wind, no turbulence, seed 1)
+#         MODEL_SCALES="mass=1.05 lift=0.95 drag=1.1" scripts/run_sitl.sh
+#           model-uncertainty factors for the simulated aircraft (mass,
+#           lift, drag, cm_alpha, control, thrust); the controllers keep
+#           the nominal model
 #         SIM_SPEED=4 HEADLESS=1 scripts/run_sitl.sh
 #           run faster than real time (PX4 follows the Gazebo clock)
 #
@@ -46,7 +50,20 @@ TURB_W20="${TURB_W20:-0}"
 TURB_SEED="${TURB_SEED:-1}"
 MODEL_TMP="$(mktemp -d /tmp/fw_sitl_models.XXXXXX)"
 cp -r "$SHARE/models/tb2" "$MODEL_TMP/"
-sed -i "s#      <pitot_x>3.3</pitot_x>#      <pitot_x>3.3</pitot_x>\n      <wind_ned>$WIND_NED</wind_ned>\n      <turbulence_w20>$TURB_W20</turbulence_w20>\n      <turbulence_seed>$TURB_SEED</turbulence_seed>#" \
+MODEL_SCALES="${MODEL_SCALES:-}"
+SCALE_PARAMS=""
+MASS_SCALE=""
+for kv in $MODEL_SCALES; do
+  key="${kv%%=*}"
+  val="${kv#*=}"
+  case "$key" in
+    mass) MASS_SCALE="$val" ;;
+    lift|drag|cm_alpha|control|thrust)
+      SCALE_PARAMS="$SCALE_PARAMS\n      <${key}_scale>$val</${key}_scale>" ;;
+    *) echo "run_sitl: unknown model scale '$key' in MODEL_SCALES" >&2; exit 1 ;;
+  esac
+done
+sed -i "s#      <pitot_x>3.3</pitot_x>#      <pitot_x>3.3</pitot_x>\n      <wind_ned>$WIND_NED</wind_ned>\n      <turbulence_w20>$TURB_W20</turbulence_w20>\n      <turbulence_seed>$TURB_SEED</turbulence_seed>$SCALE_PARAMS#" \
   "$MODEL_TMP/tb2/model.sdf"
 if ! grep -q "<wind_ned>" "$MODEL_TMP/tb2/model.sdf"; then
   echo "run_sitl: could not add the wind parameters to the model" >&2
@@ -54,6 +71,21 @@ if ! grep -q "<wind_ned>" "$MODEL_TMP/tb2/model.sdf"; then
 fi
 export GZ_SIM_RESOURCE_PATH="$MODEL_TMP:$GZ_SIM_RESOURCE_PATH"
 echo "run_sitl: wind NED [$WIND_NED] m/s, turbulence W20 $TURB_W20 m/s, seed $TURB_SEED"
+if [[ -n "$MASS_SCALE" ]]; then
+  # Same geometry, scaled mass: the inertia scales with it.
+  python3 -c '
+import re, sys
+path, k = sys.argv[1], float(sys.argv[2])
+text = open(path).read()
+text, n = re.subn(r"<(mass|ixx|iyy|izz)>([-\d.eE+]+)</\1>",
+                  lambda m: f"<{m.group(1)}>{float(m.group(2)) * k:.6g}</{m.group(1)}>", text)
+if n != 4:
+    sys.exit(f"run_sitl: expected 4 mass/inertia entries, found {n}")
+open(path, "w").write(text)
+' "$MODEL_TMP/tb2/model.sdf" "$MASS_SCALE"
+fi
+echo "run_sitl: model scales [${MODEL_SCALES:-none}]"
+grep -E "<mass>|<i(xx|yy|zz)>|_scale>" "$MODEL_TMP/tb2/model.sdf" | sed 's/^ */run_sitl:   /'
 
 gz sim -r -s -v 2 "$SHARE/worlds/$WORLD_NAME.sdf" &
 GZ_SERVER_PID=$!
