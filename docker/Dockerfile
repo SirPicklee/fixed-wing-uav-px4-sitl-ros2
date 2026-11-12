@@ -19,8 +19,10 @@ WORKDIR /root
 
 # PX4 v1.17.0 (full clone: the build derives its version from the git tags),
 # its Ubuntu toolchain and Gazebo Harmonic (simulation tools, no NuttX).
-RUN git clone --branch v1.17.0 --recursive https://github.com/PX4/PX4-Autopilot.git \
-    && bash PX4-Autopilot/Tools/setup/ubuntu.sh --no-nuttx \
+RUN git clone --branch v1.17.0 --recursive https://github.com/PX4/PX4-Autopilot.git
+# PX4's pip requirements upgrade numpy, which the ROS image installed with apt
+# (pip cannot remove it): install the newer one alongside, in /usr/local.
+RUN PIP_IGNORE_INSTALLED=1 bash PX4-Autopilot/Tools/setup/ubuntu.sh --no-nuttx \
     && rm -rf /var/lib/apt/lists/*
 RUN cd PX4-Autopilot && make px4_sitl_default
 
