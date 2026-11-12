@@ -21,6 +21,9 @@
 //   <turbulence_w20>      Dryden W20 wind speed [m/s] (default 0, off);
 //                         light 7.7, moderate 15.4, severe 23.2 (15/30/45 kt)
 //   <turbulence_seed>     random seed of the turbulence (default 1)
+//   <lift_scale>, <drag_scale>, <cm_alpha_scale>, <control_scale>,
+//   <thrust_scale>        model-uncertainty factors on groups of coefficients
+//                         (default 1); the mass is changed in the SDF itself
 //   <publish_airspeed>    publish a pitot reading for PX4 (default false)
 //   <pitot_x>             pitot position ahead of the CG along body x [m]
 //
@@ -119,6 +122,26 @@ class FixedWingAeroSystem : public gz::sim::System,
     const double w20 = sdf->Get<double>("turbulence_w20", 0.0).first;
     const unsigned int seed = sdf->Get<unsigned int>("turbulence_seed", 1u).first;
     turbulence_ = fw_aero::DrydenTurbulence(w20, seed);
+
+    // Model uncertainty for Monte Carlo runs: the controllers keep the
+    // nominal model, the simulated aircraft gets scaled coefficient groups.
+    const double lift = sdf->Get<double>("lift_scale", 1.0).first;
+    const double drag = sdf->Get<double>("drag_scale", 1.0).first;
+    const double control = sdf->Get<double>("control_scale", 1.0).first;
+    params_.cl0 *= lift;
+    params_.cl_alpha *= lift;
+    params_.cl_q *= lift;
+    params_.cl_de *= lift;
+    params_.cl_max *= lift;
+    params_.cd0 *= drag;
+    params_.oswald /= drag;  // induced-drag factor k = 1 / (pi e AR)
+    params_.cm_alpha *= sdf->Get<double>("cm_alpha_scale", 1.0).first;
+    params_.cm_de *= control;
+    params_.cl_da *= control;
+    params_.cn_da *= control;
+    params_.cy_dr *= control;
+    params_.cn_dr *= control;
+    params_.max_thrust_sl *= sdf->Get<double>("thrust_scale", 1.0).first;
 
     const std::string log_file =
         sdf->Get<std::string>("log_file", "").first;
