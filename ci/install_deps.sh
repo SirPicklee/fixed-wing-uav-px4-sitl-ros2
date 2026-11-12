@@ -15,8 +15,11 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-
   > /etc/apt/sources.list.d/gazebo-stable.list
 
 apt-get update
+# Gazebo with its recommended packages: the CMake config of gz-transport13
+# needs cppzmq, which libgz-transport13-dev only recommends.
+apt-get install -y libgz-sim8-dev cppzmq-dev
 apt-get install -y --no-install-recommends \
-  libgz-sim8-dev libeigen3-dev libgtest-dev \
+  libeigen3-dev libgtest-dev \
   python3-numpy python3-pytest python3-colcon-common-extensions \
   ros-jazzy-ament-cmake ros-jazzy-ament-flake8 ros-jazzy-ament-pep257 \
   ros-jazzy-rclpy ros-jazzy-rosidl-default-generators
