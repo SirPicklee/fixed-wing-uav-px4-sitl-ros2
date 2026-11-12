@@ -1,0 +1,6 @@
+# Host build products and environments: the image builds its own.
+build/
+install/
+log/
+.venv/
+**/__pycache__/
