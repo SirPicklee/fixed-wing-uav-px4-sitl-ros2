@@ -125,25 +125,28 @@ export PX4_SYS_AUTOSTART=4003       # base: generic gz fixed-wing airframe
 # shellcheck source=../px4/tb2_params.env
 source "$REPO/px4/tb2_params.env"
 
-# The rc_cessna airframe raises the default of SENS_EN_ARSPDSIM to 1. A
-# PX4_PARAM_ override to 0 equals the firmware default, so PX4 treats it as
-# unchanged and it follows the new airframe default: the EKF-derived airspeed
-# simulator would run as a second airspeed source. Stop it once PX4 is up;
-# the pitot computed by the fw_aero plugin is then the only airspeed source.
+# PX4_PARAM_ overrides that equal the firmware default are treated as
+# unchanged, so the airframe's set-default replaces them: rc_cessna raises
+# SENS_EN_ARSPDSIM to 1 (the EKF-derived airspeed simulator then runs as a
+# second airspeed source) and NAV_DLL_ACT to 2 (arming then waits for a GCS).
+# Once the startup script has applied the airframe (commander is running),
+# set both again and stop the simulator if it was started.
 PX4_BIN="$PX4_DIR/build/px4_sitl_default/bin"
 (
-  for _ in $(seq 120); do
+  for _ in $(seq 240); do
     sleep 0.5
-    if "$PX4_BIN/px4-param" compare SENS_EN_ARSPDSIM 0 >/dev/null 2>&1 &&
-       ! "$PX4_BIN/px4-sensor_airspeed_sim" status >/dev/null 2>&1; then
-      break                       # disabled (saved param) and not running
-    fi
+    "$PX4_BIN/px4-commander" status >/dev/null 2>&1 && break
+  done
+  "$PX4_BIN/px4-param" set NAV_DLL_ACT 0 >/dev/null 2>&1
+  "$PX4_BIN/px4-param" set SENS_EN_ARSPDSIM 0 >/dev/null 2>&1
+  echo "run_sitl: NAV_DLL_ACT and SENS_EN_ARSPDSIM set to 0"
+  for _ in $(seq 20); do
     if "$PX4_BIN/px4-sensor_airspeed_sim" status >/dev/null 2>&1; then
       "$PX4_BIN/px4-sensor_airspeed_sim" stop >/dev/null 2>&1
-      "$PX4_BIN/px4-param" set SENS_EN_ARSPDSIM 0 >/dev/null 2>&1
       echo "run_sitl: stopped sensor_airspeed_sim (EKF-derived airspeed)"
       break
     fi
+    sleep 0.5
   done
 ) &
 
